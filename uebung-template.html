@@ -2449,13 +2449,6 @@ body.fullscreen-active::before {
 
 <script>
 // ══════════════════════════════════════
-// WICHTIG: Tragen Sie hier die URL dieser Datei ein
-// damit der Vollbild-Modus in Rise funktioniert.
-// Beispiel: "https://voresttest.de/uebung-template.html"
-// ══════════════════════════════════════
-const SELF_URL = "https://mruehlevorst-collab.github.io/vorest-media/uebung-template.html";
-
-// ══════════════════════════════════════
 // GLOSSAR: edit this array to update terms
 // ══════════════════════════════════════
 const GLOSSAR_TERMS = [{"term": "Lorem Ipsum", "def": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."}, {"term": "Dolor Sit", "def": "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat."}, {"term": "Consectetur", "def": "Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur."}, {"term": "Adipiscing", "def": "Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."}, {"term": "Tempor", "def": "Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium totam rem aperiam."}];
@@ -2824,108 +2817,28 @@ function submitRating() {
 let isFullscreen = false;
 
 function toggleFullscreen() {
-  const app = document.getElementById('app');
   const label = document.getElementById('fs-label');
-  const inIframe = window.self !== window.top;
-  const openedByParent = !!window.opener;
-
   if (!isFullscreen) {
-    if (inIframe) {
-      // In Rise: open new tab with same URL, start fullscreen there
-      // Use SELF_URL if we're in srcdoc/blob context (Rise embed)
-      const baseUrl = (location.href.startsWith('about:') || location.href.startsWith('blob:'))
-        ? SELF_URL
-        : location.href.split('?')[0];
-      const sep = baseUrl.includes('?') ? '&' : '?';
-      const newTab = window.open(baseUrl + sep + '_fs=1', '_blank');
-      // Small hint toast in Rise tab
-      showFsToast('Übung wird im Vollbild geöffnet …', '#408023', 2000);
-      return;
-    }
-    // Standalone or new tab: real fullscreen
     const el = document.documentElement;
     const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen;
     if (req) {
-      req.call(el).then(() => {
-        isFullscreen = true;
-        if (label) label.textContent = 'Vollbild verlassen';
-      }).catch(() => cssFullscreen(true));
+      req.call(el).catch(() => cssFullscreen(true));
+      // scaleApp is called by fullscreenchange event once FS is actually active
     } else {
       cssFullscreen(true);
     }
   } else {
-    // Verlassen
-    if (openedByParent) {
-      // Opened from Rise tab: show warning toast, then close
-      showFsToast('Übungsfortschritt wird zurückgesetzt …', '#FF5D02', 2200, () => {
-        const exit = document.exitFullscreen || document.webkitExitFullscreen;
-        if (exit && document.fullscreenElement) {
-          exit.call(document).then(() => window.close()).catch(() => window.close());
-        } else {
-          window.close();
-        }
-      });
-      return;
-    }
-    // Standalone: normal exit
     const exit = document.exitFullscreen || document.webkitExitFullscreen;
     if (exit && document.fullscreenElement) {
-      exit.call(document).then(() => {
-        isFullscreen = false;
-        if (label) label.textContent = 'Vollbild';
-      }).catch(() => cssFullscreen(false));
+      exit.call(document).catch(() => cssFullscreen(false));
+      // scaleApp is called by fullscreenchange event once FS is actually exited
     } else {
       cssFullscreen(false);
     }
   }
 }
 
-function showFsToast(msg, color, duration, callback) {
-  // Remove existing
-  const old = document.getElementById('fs-toast');
-  if (old) old.remove();
 
-  const toast = document.createElement('div');
-  toast.id = 'fs-toast';
-  toast.innerHTML = `
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white"
-      stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0">
-      <circle cx="12" cy="12" r="10"/>
-      <line x1="12" y1="8" x2="12" y2="12"/>
-      <line x1="12" y1="16" x2="12.01" y2="16"/>
-    </svg>
-    <span>${msg}</span>`;
-  Object.assign(toast.style, {
-    position: 'fixed',
-    bottom: '32px',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    background: color,
-    color: 'white',
-    padding: '10px 20px',
-    borderRadius: '20px',
-    fontSize: '13px',
-    fontWeight: '700',
-    zIndex: '99999',
-    boxShadow: '0 4px 18px rgba(0,0,0,0.35)',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    whiteSpace: 'nowrap',
-    transition: 'opacity 0.3s',
-    opacity: '1',
-    pointerEvents: 'none',
-  });
-  document.body.appendChild(toast);
-
-  setTimeout(() => {
-    toast.style.opacity = '0';
-    setTimeout(() => {
-      toast.remove();
-      if (callback) callback();
-    }, 300);
-  }, duration);
-}
 
 // Auto-scale to fill available space on load and resize
 function autoScale() {
@@ -2979,9 +2892,11 @@ function scaleApp() {
   const app = document.getElementById('app');
   const vw = window.innerWidth  || document.documentElement.clientWidth;
   const vh = window.innerHeight || document.documentElement.clientHeight;
-  // Proportional: fit inside viewport, preserve 1280x720
   const scale = Math.min(vw / 1280, vh / 720);
-  app.style.width  = '1280px';
+  app.style.position = 'fixed';
+  app.style.top = '50%';
+  app.style.left = '50%';
+  app.style.width = '1280px';
   app.style.height = '720px';
   app.style.transform = `translate(-50%, -50%) scale(${scale})`;
   app.style.transformOrigin = 'center center';
@@ -2989,11 +2904,24 @@ function scaleApp() {
 
 // Listen for browser fullscreen exit (ESC key)
 document.addEventListener('fullscreenchange', () => {
-  if (!document.fullscreenElement) {
+  const label = document.getElementById('fs-label');
+  if (document.fullscreenElement) {
+    // Entered fullscreen
+    isFullscreen = true;
+    if (label) label.textContent = 'Vollbild verlassen';
+    scaleApp();
+  } else {
+    // Exited fullscreen (button or ESC)
     isFullscreen = false;
-    const label = document.getElementById('fs-label');
     if (label) label.textContent = 'Vollbild';
-    autoScale(); // re-apply auto scale after exit
+    // Reset positioning
+    const app = document.getElementById('app');
+    app.style.position = '';
+    app.style.top = '';
+    app.style.left = '';
+    app.style.width = '';
+    app.style.height = '';
+    app.style.transform = '';
   }
 });
 
