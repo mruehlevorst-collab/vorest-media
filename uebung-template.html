@@ -238,15 +238,17 @@ body:not(.praesenz) .trainer-only { display: none !important; }
   /* transform set by JS */
 }
 /* Full viewport cover with green letterbox */
+body.fullscreen-active {
+  background: #1a4010 !important;
+  overflow: hidden;
+}
 body.fullscreen-active::before {
   content: '';
   position: fixed; top:0; left:0;
   width:100vw; height:100vh;
   background: #1a4010;
-  z-index: 8999;
-}
-body.fullscreen-active {
-  overflow: hidden;
+  z-index: 8998;
+  pointer-events: none;
 }
 
 /* ════════════════════════════════════
@@ -2925,24 +2927,15 @@ function showFsToast(msg, color, duration, callback) {
   }, duration);
 }
 
-// Auto-start fullscreen if opened from Rise tab
+// Auto-start CSS scale fullscreen if opened from Rise tab (?_fs=1)
 (function() {
   const params = new URLSearchParams(window.location.search);
-  if (params.get('_fs') === '1' && !window.self !== window.top) {
-    // Small delay to let page render first
+  if (params.get('_fs') === '1') {
     setTimeout(() => {
-      const el = document.documentElement;
-      const req = el.requestFullscreen || el.webkitRequestFullscreen;
-      if (req) {
-        req.call(el).then(() => {
-          isFullscreen = true;
-          const label = document.getElementById('fs-label');
-          if (label) label.textContent = 'Vollbild verlassen';
-          // Show welcome toast
-          showFsToast('Vollbild aktiv — Schließen kehrt zu Rise zurück', '#408023', 2500);
-        }).catch(() => {});
-      }
-    }, 600);
+      // CSS scale to fill entire screen proportionally — green letterbox bars
+      cssFullscreen(true);
+      showFsToast('Vollbild aktiv — Schließen kehrt zu Rise zurück', '#408023', 2500);
+    }, 300);
   }
 })();
 
