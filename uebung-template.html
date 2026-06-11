@@ -981,7 +981,7 @@ body.fullscreen-active::before {
       <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/>
       <line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
     </svg>
-    <span class="sb-label" id="fs-label">Vollbild öffnen</span>
+    <span class="sb-label" id="fs-label">Vollbild</span>
   </button>
 </div>
 
@@ -2927,17 +2927,33 @@ function showFsToast(msg, color, duration, callback) {
   }, duration);
 }
 
-// Auto-start CSS scale fullscreen if opened from Rise tab (?_fs=1)
-(function() {
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('_fs') === '1') {
-    setTimeout(() => {
-      // CSS scale to fill entire screen proportionally — green letterbox bars
-      cssFullscreen(true);
-      showFsToast('Vollbild aktiv — Schließen kehrt zu Rise zurück', '#408023', 2500);
-    }, 300);
+// Auto-scale to fill available space on load and resize
+function autoScale() {
+  const app = document.getElementById('app');
+  if (isFullscreen) return; // don't interfere with fullscreen
+  const vw = window.innerWidth  || document.documentElement.clientWidth;
+  const vh = window.innerHeight || document.documentElement.clientHeight;
+  const scale = Math.min(vw / 1280, vh / 720);
+  if (scale < 0.999) {
+    // Only scale down if needed, never scale up beyond 1
+    app.style.position = 'absolute';
+    app.style.top  = '50%';
+    app.style.left = '50%';
+    app.style.transform = `translate(-50%, -50%) scale(${scale})`;
+    app.style.transformOrigin = 'center center';
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+  } else {
+    app.style.position = '';
+    app.style.top  = '';
+    app.style.left = '';
+    app.style.transform = '';
+    document.body.style.overflow = '';
+    document.documentElement.style.overflow = '';
   }
-})();
+}
+window.addEventListener('resize', autoScale);
+setTimeout(autoScale, 100);
 
 function cssFullscreen(on) {
   const app = document.getElementById('app');
@@ -2973,14 +2989,11 @@ function scaleApp() {
 
 // Listen for browser fullscreen exit (ESC key)
 document.addEventListener('fullscreenchange', () => {
-  if (!document.fullscreenElement && isFullscreen) {
+  if (!document.fullscreenElement) {
     isFullscreen = false;
     const label = document.getElementById('fs-label');
-    if (label) label.textContent = 'Vollbild öffnen';
-    // If ESC pressed in opener tab, close
-    if (window.opener) {
-      showFsToast('Übungsfortschritt wird zurückgesetzt …', '#FF5D02', 2200, () => window.close());
-    }
+    if (label) label.textContent = 'Vollbild';
+    autoScale(); // re-apply auto scale after exit
   }
 });
 
