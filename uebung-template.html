@@ -2842,28 +2842,17 @@ function toggleFullscreen() {
 
 // Auto-scale to fill available space on load and resize
 function autoScale() {
+  if (isFullscreen) return; // fullscreenchange handles scaling in FS
   const app = document.getElementById('app');
-  if (isFullscreen) return; // don't interfere with fullscreen
   const vw = window.innerWidth  || document.documentElement.clientWidth;
   const vh = window.innerHeight || document.documentElement.clientHeight;
   const scale = Math.min(vw / 1280, vh / 720);
-  if (scale < 0.999) {
-    // Only scale down if needed, never scale up beyond 1
-    app.style.position = 'absolute';
-    app.style.top  = '50%';
-    app.style.left = '50%';
-    app.style.transform = `translate(-50%, -50%) scale(${scale})`;
-    app.style.transformOrigin = 'center center';
-    document.body.style.overflow = 'hidden';
-    document.documentElement.style.overflow = 'hidden';
-  } else {
-    app.style.position = '';
-    app.style.top  = '';
-    app.style.left = '';
-    app.style.transform = '';
-    document.body.style.overflow = '';
-    document.documentElement.style.overflow = '';
-  }
+  // Always scale proportionally — up or down
+  app.style.position = 'relative';
+  app.style.top = '';
+  app.style.left = '';
+  app.style.transform = `scale(${scale})`;
+  app.style.transformOrigin = 'center top';
 }
 window.addEventListener('resize', autoScale);
 setTimeout(autoScale, 100);
@@ -2874,17 +2863,15 @@ function cssFullscreen(on) {
   if (on) {
     app.classList.add('fullscreen');
     document.body.classList.add('fullscreen-active');
-    scaleApp();
-    window.addEventListener('resize', scaleApp);
     isFullscreen = true;
     if (label) label.textContent = 'Vollbild verlassen';
+    scaleApp();
   } else {
     app.classList.remove('fullscreen');
     document.body.classList.remove('fullscreen-active');
-    app.style.transform = '';
-    window.removeEventListener('resize', scaleApp);
     isFullscreen = false;
     if (label) label.textContent = 'Vollbild';
+    setTimeout(autoScale, 50);
   }
 }
 
@@ -2906,22 +2893,16 @@ function scaleApp() {
 document.addEventListener('fullscreenchange', () => {
   const label = document.getElementById('fs-label');
   if (document.fullscreenElement) {
-    // Entered fullscreen
+    // Entered fullscreen — scaleApp uses full screen dimensions
     isFullscreen = true;
     if (label) label.textContent = 'Vollbild verlassen';
     scaleApp();
   } else {
-    // Exited fullscreen (button or ESC)
+    // Exited fullscreen — restore normal scaling
     isFullscreen = false;
     if (label) label.textContent = 'Vollbild';
-    // Reset positioning
-    const app = document.getElementById('app');
-    app.style.position = '';
-    app.style.top = '';
-    app.style.left = '';
-    app.style.width = '';
-    app.style.height = '';
-    app.style.transform = '';
+    // Small delay to let browser finish resize before measuring
+    setTimeout(autoScale, 50);
   }
 });
 
